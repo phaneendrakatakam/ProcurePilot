@@ -8,9 +8,10 @@ ProcurePilot is a full-stack, role-based procurement management platform designe
 Built with **Python, FastAPI, PostgreSQL, SQLAlchemy, Alembic, and JavaScript**, ProcurePilot focuses on workflow governance, role-based authorization, financial controls, and auditable business operations.
 
 **Release:** v1.0.0 — Initial Portfolio Release  
-**Status:** Portfolio project | Local execution  
+**Status:** Live portfolio deployment | Render Free + Neon PostgreSQL  
 **Architecture:** Modular monolith  
-**AI integration:** Not included in the current release
+**AI integration:** Not included in the current release  
+**Live application:** [procurepilot-2u39.onrender.com](https://procurepilot-2u39.onrender.com/)
 
 ---
 
@@ -49,7 +50,7 @@ The platform demonstrates how an enterprise workflow can coordinate employees, p
 - Initiate sourcing against purchase requests
 - Manage supplier information
 - Create requests for quotation (RFQs)
-- Send RFQ notifications through configured email services
+- RFQ supplier notification integration is implemented in source code but unavailable in the current hosted deployment (SMTP is not configured)
 - Capture supplier quotation responses
 - Support itemized supplier quotations
 - Compare offers and select a supplier
@@ -69,7 +70,7 @@ The platform demonstrates how an enterprise workflow can coordinate employees, p
 - Support itemized purchase order details
 - Maintain supplier and purchasing information
 - Separate purchase order creation from authorized issuance
-- Track supplier notification activity
+- Track supplier notification activity (outbound email is not configured on the hosted deployment)
 
 ### Goods Receipt Management
 
@@ -92,7 +93,7 @@ The platform demonstrates how an enterprise workflow can coordinate employees, p
 - Administrative access to platform management functions
 - Human and system audit events
 - Traceable procurement and financial decisions
-- Workflow notification and reminder automation
+- Workflow notification and reminder automation in source code (disabled in the current hosted deployment)
 
 ---
 
@@ -176,7 +177,7 @@ flowchart TB
         MIG["Alembic Migrations"]
     end
 
-    MAIL["Optional SMTP Email Service"]
+    MAIL["Optional SMTP Email Service (not configured on Render)"]
     SUP["Suppliers / RFQ Recipients"]
 
     U --> UI
@@ -220,7 +221,7 @@ Alembic manages schema migrations.
 
 **Integration layer**
 
-SMTP configuration supports supplier email notifications. Email-related behavior depends on the environment and configured mail service.
+The code includes optional SMTP supplier email notifications. **SMTP is not configured on the Render Free deployment**, so email-dependent actions may fail. Background notification automations are disabled in the hosted environment.
 
 ### Architectural Approach
 
@@ -242,7 +243,9 @@ It avoids unnecessary microservice infrastructure for a portfolio-scale applicat
 | Frontend | HTML, CSS, JavaScript |
 | Authentication | JWT |
 | Password hashing | Argon2 |
-| Email | SMTP integration |
+| Email | Optional SMTP integration (not configured in hosted deployment) |
+| Hosting | Render Free (native Python web service) |
+| Managed database | Neon PostgreSQL |
 | Automated testing | Pytest, HTTPX |
 | Version control | Git, GitHub |
 
@@ -251,7 +254,7 @@ It avoids unnecessary microservice infrastructure for a portfolio-scale applicat
 ## Project Structure
 
 ```text
-ProcurePilot-AI/
+ProcurePilot/
 │
 ├── app/
 │   ├── api/
@@ -314,11 +317,11 @@ The system records operational events and relevant actors to improve traceabilit
 
 ### Configuration Security
 
-Environment-specific database credentials, JWT secrets, and SMTP credentials are expected to be configured locally.
+Database credentials and JWT secrets must be supplied through environment variables. Optional SMTP credentials are needed only if email delivery is configured in a supported environment.
 
 Real credentials, local `.env` files, and private environment templates are not included in the published repository.
 
-**Security note:** This is a portfolio release, not a security certification or production-hardening claim. Development defaults must be replaced before any non-development deployment.
+**Security note:** This is a publicly hosted portfolio application, not a security certification or a claim of comprehensive production hardening. In `APP_ENV=production`, startup checks reject the development JWT secret, JWT secrets shorter than 32 characters, and database URLs pointing to localhost.
 
 ---
 
@@ -337,8 +340,8 @@ Ensure PostgreSQL is running and that you have a database and database user avai
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/phaneendrakatakam/ProcurePilot-AI.git
-cd ProcurePilot-AI
+git clone https://github.com/phaneendrakatakam/ProcurePilot.git
+cd ProcurePilot
 ```
 
 ### 2. Create a Python Virtual Environment
@@ -461,9 +464,9 @@ $env:PYTHONUTF8 = "1"
 python -m pytest -q
 ```
 
-### Validation Performed for v1.0.0
+### Validation Performed for v1.0.0 and Deployment Preparation
 
-**129 automated tests passed** during the local release validation.
+**129 automated tests passed** during local release validation and again during Render deployment preparation.
 
 Additional validation included:
 
@@ -497,6 +500,51 @@ It should not be interpreted as a production performance benchmark or a guarante
 
 ---
 
+## Live Deployment (Render + Neon)
+
+**Live URL:** [https://procurepilot-2u39.onrender.com/](https://procurepilot-2u39.onrender.com/)  
+**Hosting:** Render Free web service (native Python runtime; no Docker)  
+**Database:** Neon PostgreSQL  
+**Source:** [phaneendrakatakam/ProcurePilot](https://github.com/phaneendrakatakam/ProcurePilot), `main` branch
+
+The hosted application serves the HTML/CSS/JavaScript interface and FastAPI endpoints from the same Python service. Database schema migrations were applied to Neon using Alembic. The deployment was initialized with foundational user, role, permission, department, and vendor records migrated from the local development database; historical procurement transactions were not migrated.
+
+### Render Web Service Configuration
+
+| Setting | Value |
+|---|---|
+| Runtime | Python |
+| Plan | Free |
+| Branch | `main` |
+| Root directory | Repository root |
+| Build command | `pip install -r requirements.txt` |
+| Start command | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+
+### Hosted Environment Variables
+
+| Variable | Purpose | Required for hosted setup? |
+|---|---|---|
+| `APP_ENV=production` | Enables production configuration checks | Yes |
+| `DATABASE_URL` | Neon PostgreSQL connection URL using `postgresql+psycopg://` | Yes |
+| `SECRET_KEY` | Strong JWT signing secret (minimum 32 characters) | Yes |
+| `AUTOMATION_ENABLED=false` | Disables scheduled notification automations | Yes for current deployment configuration |
+| `PUBLIC_BASE_URL` | Canonical public URL for absolute links | Optional; recommended when generating external links |
+| `APP_NAME`, `APP_VERSION` | Display/application metadata | Optional |
+| `SMTP_*` | Optional SMTP email settings | Not configured on Render Free |
+
+**Never commit production credentials, connection strings, or secret keys to the repository.** Configure them through the Render dashboard. If used, set `PUBLIC_BASE_URL=https://procurepilot-2u39.onrender.com` without a trailing slash.
+
+### Deployment Verification and Limitations
+
+- The hosted login page, Admin sign-in, and Admin dashboard were manually verified after deployment.
+- The existing 129-test regression suite passed locally before deployment; a full end-to-end procurement workflow was **not** rerun on the hosted service.
+- SMTP supplier invitations, purchase-order emails, and email reminders are **not operational** on this deployment. Email-dependent actions remain in the code and may return errors; do not rely on them for supplier communications.
+- Background automation is disabled in the hosted environment.
+- Render Free instances may sleep when idle, causing a delay on the first request after inactivity.
+- Payment finalization records application-level status and audit data; it does not move money through a payment processor.
+
+---
+
 ## Engineering Decisions
 
 ### Deterministic Workflows Instead of AI-Driven Decisions
@@ -505,7 +553,7 @@ ProcurePilot deliberately uses explicit business rules for approvals, permission
 
 These decisions require predictability, accountability, and clear validation rather than probabilistic outputs.
 
-Although the repository retains the historical `-AI` name, **this release does not include an AI model or LLM integration**.
+Although earlier repository naming used `-AI`, the project is named **ProcurePilot** and **does not include an AI model or LLM integration**.
 
 ### Stronger Financial Boundaries
 
@@ -531,19 +579,18 @@ Automated tests exercise approval decisions, permission boundaries, procurement 
 
 ## Current Scope & Limitations
 
-ProcurePilot v1.0.0 is a **source-code portfolio release**.
-
-It demonstrates the design and implementation of a structured procurement platform, but it is not presented as a deployed commercial SaaS product.
+ProcurePilot v1.0.0 is a **portfolio release with a live hosted demonstration**. It is not presented as a commercial SaaS product or a comprehensively production-hardened system.
 
 Current scope considerations:
 
-- A local PostgreSQL database is required.
-- Email notifications depend on SMTP configuration.
-- Demo accounts are intended for development and evaluation.
-- The application has not been claimed as production-hardened.
+- The hosted deployment uses Neon PostgreSQL; local development can use a separate PostgreSQL database.
+- Supplier and purchase-order email delivery is not configured in the hosted deployment; email-dependent actions may fail.
+- Scheduled background automations are disabled in the hosted deployment.
+- Demo accounts are intended for development and evaluation; do not use shared demo credentials for sensitive data.
+- Render Free may introduce cold-start delays after inactivity.
 - Payment finalization records an application-level payment outcome; it is not a banking or payment-gateway integration.
 - The current release does not integrate an AI model.
-- No hosted live demo is provided as part of this release.
+- Hosted end-to-end procurement workflow testing was not performed as part of the initial deployment verification.
 
 ---
 
@@ -552,8 +599,8 @@ Current scope considerations:
 Possible next steps include:
 
 - Continuous integration with GitHub Actions
-- Stronger environment-specific configuration validation
-- Containerized deployment
+- Expanded production configuration validation and observability
+- Optional containerized deployment for portability
 - Expanded integration and workflow testing
 - Improved procurement analytics and operational reporting
 - External ERP and accounting integrations
@@ -565,11 +612,11 @@ These are future possibilities, not features claimed to be included in v1.0.0.
 
 ## Release
 
-**Version:** [v1.0.0 — Initial Portfolio Release](https://github.com/phaneendrakatakam/ProcurePilot-AI/releases/tag/v1.0.0)
+**Version:** [v1.0.0 — Initial Portfolio Release](https://github.com/phaneendrakatakam/ProcurePilot/releases/tag/v1.0.0)
 
 The initial release includes the procurement workflow implementation, database migrations, frontend, supporting scripts, and automated tests.
 
-No private credentials, populated databases, or screenshots are distributed as part of the repository release.
+No private credentials, populated databases, or screenshots are distributed as part of the repository release. The current hosted deployment is documented above; the original v1.0.0 release tag remains the historical initial release.
 
 ---
 
