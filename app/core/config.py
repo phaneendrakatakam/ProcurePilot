@@ -42,3 +42,13 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+if settings.app_env.lower() == "production":
+    if settings.secret_key.startswith("development-only-change-me"):
+        raise RuntimeError("Production requires a secure SECRET_KEY.")
+
+    if len(settings.secret_key) < 32:
+        raise RuntimeError("Production SECRET_KEY must be at least 32 characters.")
+
+    if "localhost" in settings.database_url or "127.0.0.1" in settings.database_url:
+        raise RuntimeError("Production requires an external database.")
